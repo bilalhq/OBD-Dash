@@ -2,6 +2,26 @@
 
 An Android dashboard for Bluetooth ELM327 OBD-II adapters, built with Kotlin and Jetpack Compose.
 
+## Screenshots
+
+### Phone
+<p>
+  <img src="screenshots/phone_dashboard_demo.png" width="260" alt="Live dashboard with RPM and speed gauges and sensor tiles">
+  <img src="screenshots/phone_home.png" width="260" alt="Start screen with connect card and paired adapters">
+  <img src="screenshots/phone_profile_theme_setting.png" width="260" alt="Profile settings with units and Android Auto theme">
+</p>
+
+### Android Auto
+**Night**
+
+![Android Auto dashboard, night theme](screenshots/android_auto_night.png)
+
+**Day**
+
+![Android Auto dashboard, day theme](screenshots/android_auto_day.png)
+
+*Screenshots are from the emulator in Demo mode. The Android Auto images show the dashboard drawn by the car renderer, without Android Auto's own frame and buttons.*
+
 ## Features
 - Connects to **paired** Bluetooth Classic (SPP) ELM327 adapters, including cheap clones (it falls back to RFCOMM channel 1)
 - Large animated arc gauges for **RPM** (red zone from 6500) and **Speed**
@@ -28,7 +48,9 @@ Minimum Android version: 8.0 (API 26).
 3. Open OBD Dash, allow the Nearby devices permission, and tap your adapter.
 
 ## Android Auto
-The car screen shows the RPM and speed gauges plus six sensor tiles with running graphs. Its buttons are Codes (read-only), Connect, Demo and units.
+The car screen shows the RPM and speed gauges plus six sensor tiles with running graphs. Its buttons are Codes (read-only), Connect, Demo, units and theme.
+
+**Day/night theme:** in **Auto** (the default), the car screen switches between light and dark colours when your headlights come on, following the car's own day/night signal. You can also force **Day** or **Night**, either with the theme button on the car screen or under **Profile → Android Auto theme** on the phone.
 
 It's registered as a *navigation* app because that's the only kind of Android Auto app allowed to draw its own screen. Two consequences:
 - Opening it on the car screen replaces Google Maps, since only one navigation app can be active at a time.

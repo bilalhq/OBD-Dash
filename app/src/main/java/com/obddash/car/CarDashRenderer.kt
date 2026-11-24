@@ -253,10 +253,14 @@ class CarDashRenderer(context: Context) {
         c.drawCircle(cx, cy, radius * 0.95f, fill)
         fill.shader = null
         if (p.faceRim != 0) {
-            line.shader = null
-            line.color = p.faceRim
-            line.strokeWidth = dim * 0.004f
-            c.drawCircle(cx, cy, radius * 0.95f, line)
+            // Same 270° sweep as the dial, leaving the bottom open so it doesn't cut through the label.
+            val rr = radius * 0.95f
+            arc.shader = null
+            arc.alpha = 255
+            arc.color = p.faceRim
+            arc.strokeWidth = dim * 0.004f
+            arc.strokeCap = Paint.Cap.ROUND
+            c.drawArc(RectF(cx - rr, cy - rr, cx + rr, cy + rr), 135f, 270f, false, arc)
         }
 
         // Track

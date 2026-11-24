@@ -46,6 +46,7 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.obddash.CarTheme
 import com.obddash.ConnState
 import com.obddash.FuelType
 import com.obddash.Profile
@@ -57,6 +58,7 @@ fun ProfileScreen(
     s: UiState,
     onChange: (Profile) -> Unit,
     onImperial: (Boolean) -> Unit,
+    onCarTheme: (CarTheme) -> Unit,
     onReadVin: () -> Unit,
     onClose: () -> Unit,
 ) {
@@ -153,6 +155,18 @@ fun ProfileScreen(
                 Segment("Metric · km/h °C", selected = !s.imperial, modifier = Modifier.weight(1f)) { onImperial(false) }
                 Segment("Imperial · mph °F", selected = s.imperial, modifier = Modifier.weight(1f)) { onImperial(true) }
             }
+
+            SectionLabel("Android Auto theme")
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                CarTheme.entries.forEach { t ->
+                    Segment(t.label, selected = s.carTheme == t, modifier = Modifier.weight(1f)) { onCarTheme(t) }
+                }
+            }
+            Text(
+                "Auto switches the car dashboard to day or night colours when your headlights come on, " +
+                    "following the car's own day/night setting. You can also change it from the car screen.",
+                color = DashColors.Muted, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(start = 4.dp),
+            )
 
             Spacer(Modifier.height(4.dp))
             GradientButton("Done", onClose, Modifier.fillMaxWidth())

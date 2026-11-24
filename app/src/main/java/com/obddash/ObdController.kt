@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.updateAndGet
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.io.File
@@ -52,6 +53,9 @@ data class CodesState(
     val info: String? = null,
 )
 
+/** Android Auto dashboard colours. [AUTO] follows the car's day/night signal (headlights / light sensor). */
+enum class CarTheme(val label: String) { AUTO("Auto"), DAY("Day"), NIGHT("Night") }
+
 data class UiState(
     val conn: ConnState = ConnState.Idle,
     val message: String? = null,
@@ -67,6 +71,7 @@ data class UiState(
     val voltage: Float? = null,
     val readingsPerSec: Float = 0f,
     val imperial: Boolean = false,
+    val carTheme: CarTheme = CarTheme.AUTO,
     val bluetoothAvailable: Boolean = true,
     val bluetoothOn: Boolean = false,
     val pairedDevices: List<PairedDevice> = emptyList(),
@@ -96,6 +101,8 @@ class ObdController(app: Application) {
     private val _state = MutableStateFlow(
         UiState(
             imperial = prefs.getBoolean(KEY_IMPERIAL, false),
+            carTheme = prefs.getString(KEY_CAR_THEME, null)
+                ?.let { name -> CarTheme.entries.firstOrNull { it.name == name } } ?: CarTheme.AUTO,
             lastAddress = prefs.getString(KEY_LAST, null),
             bluetoothAvailable = adapter != null,
             trips = tripStore.load(),
@@ -153,6 +160,17 @@ class ObdController(app: Application) {
     fun setImperial(imperial: Boolean) {
         prefs.edit().putBoolean(KEY_IMPERIAL, imperial).apply()
         _state.update { it.copy(imperial = imperial) }
+    }
+
+    fun setCarTheme(theme: CarTheme) {
+        prefs.edit().putString(KEY_CAR_THEME, theme.name).apply()
+        _state.update { it.copy(carTheme = theme) }
+    }
+
+    /** Auto → Day → Night → Auto, for the button on the car screen. */
+    fun cycleCarTheme() {
+        val next = _state.updateAndGet { it.copy(carTheme = CarTheme.entries[(it.carTheme.ordinal + 1) % CarTheme.entries.size]) }
+        prefs.edit().putString(KEY_CAR_THEME, next.carTheme.name).apply()
     }
 
     // ---------------------------------------------------------------- profile
@@ -592,6 +610,7 @@ class ObdController(app: Application) {
 
     private companion object {
         const val KEY_IMPERIAL = "imperial"
+        const val KEY_CAR_THEME = "car_theme"
         const val KEY_LAST = "last_device"
         const val AUTOSAVE_MS = 30_000L
 

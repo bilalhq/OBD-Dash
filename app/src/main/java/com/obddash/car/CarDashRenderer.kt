@@ -35,18 +35,58 @@ import kotlin.math.sin
 /** Draws the dashboard onto the Android Auto surface. Same look as the phone UI. */
 class CarDashRenderer(context: Context) {
 
-    // Same palette as ui/Theme.kt
-    private val bg = 0xFF07090D.toInt()
-    private val surface = 0xFF10141B.toInt()
-    private val surfaceHigh = 0xFF171C26.toInt()
-    private val border = 0x12FFFFFF
-    private val track = 0xFF1E2530.toInt()
-    private val accent = 0xFF22D3EE.toInt()
-    private val accent2 = 0xFF8B5CF6.toInt()
-    private val red = 0xFFFB4D6D.toInt()
-    private val amber = 0xFFFBBF24.toInt()
-    private val textColor = 0xFFF1F5F9.toInt()
-    private val muted = 0xFF8A94A6.toInt()
+    private class Palette(
+        val bg: Int, val surface: Int, val surfaceHigh: Int, val border: Int, val track: Int,
+        val accent: Int, val accent2: Int, val red: Int, val amber: Int, val text: Int, val muted: Int,
+        /** Ambient background glow strengths (accent top-left, accent2 bottom-right). */
+        val glowAlpha: Int, val glow2Alpha: Int,
+        /** Gauge face: radial gradient centre → edge, plus an optional rim (0 = none). */
+        val faceInner: Int, val faceOuter: Int, val faceRim: Int,
+        /** Needle tip: halo alpha and core dot colour. */
+        val tipHaloAlpha: Int, val tipCore: Int,
+    )
+
+    // Night: same palette as ui/Theme.kt
+    private val night = Palette(
+        bg = 0xFF07090D.toInt(), surface = 0xFF10141B.toInt(), surfaceHigh = 0xFF171C26.toInt(),
+        border = 0x12FFFFFF, track = 0xFF1E2530.toInt(),
+        accent = 0xFF22D3EE.toInt(), accent2 = 0xFF8B5CF6.toInt(), red = 0xFFFB4D6D.toInt(), amber = 0xFFFBBF24.toInt(),
+        text = 0xFFF1F5F9.toInt(), muted = 0xFF8A94A6.toInt(),
+        glowAlpha = 0x1A, glow2Alpha = 0x17,
+        faceInner = 0xE6171C26.toInt(), faceOuter = 0x0010141B, faceRim = 0,
+        tipHaloAlpha = 0x59, tipCore = 0xFFFFFFFF.toInt(),
+    )
+
+    // Day: light surfaces with deeper accents so they hold contrast in sunlight.
+    private val day = Palette(
+        bg = 0xFFF2F5F9.toInt(), surface = 0xFFE9EEF4.toInt(), surfaceHigh = 0xFFFFFFFF.toInt(),
+        border = 0x1F0F172A, track = 0xFFD6DDE6.toInt(),
+        accent = 0xFF0891B2.toInt(), accent2 = 0xFF7C3AED.toInt(), red = 0xFFE11D48.toInt(), amber = 0xFFD97706.toInt(),
+        text = 0xFF0F172A.toInt(), muted = 0xFF526070.toInt(),
+        glowAlpha = 0x14, glow2Alpha = 0x12,
+        faceInner = 0xFFFFFFFF.toInt(), faceOuter = 0xFFE4EAF1.toInt(), faceRim = 0x260F172A,
+        tipHaloAlpha = 0x80, tipCore = 0xFF0F172A.toInt(),
+    )
+
+    private var p = night
+
+    /** Switches between the night (dark) and day (light) palettes. */
+    fun setDark(dark: Boolean) {
+        p = if (dark) night else day
+    }
+
+    // Shorthands for the current palette.
+    private val bg get() = p.bg
+    private val surface get() = p.surface
+    private val surfaceHigh get() = p.surfaceHigh
+    private val border get() = p.border
+    private val track get() = p.track
+    private val accent get() = p.accent
+    private val accent2 get() = p.accent2
+    private val red get() = p.red
+    private val amber get() = p.amber
+    private val textColor get() = p.text
+    private val muted get() = p.muted
 
     // Bundled fonts (variable); fall back to system fonts if loading fails.
     private val displayBase: Typeface = runCatching { ResourcesCompat.getFont(context, R.font.space_grotesk) }.getOrNull() ?: Typeface.DEFAULT
@@ -81,9 +121,9 @@ class CarDashRenderer(context: Context) {
         // Ambient glows, same as the phone background.
         val w = c.width.toFloat()
         val h = c.height.toFloat()
-        fill.shader = RadialGradient(w * 0.1f, h * 0.05f, maxOf(w, h) * 0.6f, withAlpha(accent, 0x1A), 0, Shader.TileMode.CLAMP)
+        fill.shader = RadialGradient(w * 0.1f, h * 0.05f, maxOf(w, h) * 0.6f, withAlpha(accent, p.glowAlpha), withAlpha(accent, 0), Shader.TileMode.CLAMP)
         c.drawRect(0f, 0f, w, h, fill)
-        fill.shader = RadialGradient(w * 0.95f, h * 0.9f, maxOf(w, h) * 0.6f, withAlpha(accent2, 0x17), 0, Shader.TileMode.CLAMP)
+        fill.shader = RadialGradient(w * 0.95f, h * 0.9f, maxOf(w, h) * 0.6f, withAlpha(accent2, p.glow2Alpha), withAlpha(accent2, 0), Shader.TileMode.CLAMP)
         c.drawRect(0f, 0f, w, h, fill)
         fill.shader = null
 
@@ -209,9 +249,15 @@ class CarDashRenderer(context: Context) {
         val endColor = if (inRed) red else accent2
 
         // Inner depth disc
-        fill.shader = RadialGradient(cx, cy, radius * 0.95f, withAlpha(surfaceHigh, 0xE6), withAlpha(surface, 0), Shader.TileMode.CLAMP)
+        fill.shader = RadialGradient(cx, cy, radius * 0.95f, p.faceInner, p.faceOuter, Shader.TileMode.CLAMP)
         c.drawCircle(cx, cy, radius * 0.95f, fill)
         fill.shader = null
+        if (p.faceRim != 0) {
+            line.shader = null
+            line.color = p.faceRim
+            line.strokeWidth = dim * 0.004f
+            c.drawCircle(cx, cy, radius * 0.95f, line)
+        }
 
         // Track
         arc.shader = null
@@ -254,9 +300,9 @@ class CarDashRenderer(context: Context) {
                 val ta = Math.toRadians((135f + sweep).toDouble())
                 val tx = cx + radius * cos(ta).toFloat()
                 val ty = cy + radius * sin(ta).toFloat()
-                fill.color = withAlpha(if (inRed) red else accent2, 0x59)
+                fill.color = withAlpha(if (inRed) red else accent2, p.tipHaloAlpha)
                 c.drawCircle(tx, ty, stroke * 1.1f, fill)
-                fill.color = 0xFFFFFFFF.toInt()
+                fill.color = p.tipCore
                 c.drawCircle(tx, ty, stroke * 0.32f, fill)
             }
         }

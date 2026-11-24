@@ -22,6 +22,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import com.obddash.CarTheme
 import com.obddash.ConnState
 import com.obddash.ObdApp
 import com.obddash.UiState
@@ -77,7 +78,7 @@ class CarDashScreen(carContext: CarContext) : Screen(carContext), SurfaceCallbac
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 controller.state
-                    .map { Triple(it.conn, it.imperial, it.codes.stored.size + it.codes.pending.size) }
+                    .map { StripKey(it.conn, it.imperial, it.carTheme, it.codes.stored.size + it.codes.pending.size) }
                     .distinctUntilChanged()
                     .collect { invalidate() }
             }
@@ -114,6 +115,12 @@ class CarDashScreen(carContext: CarContext) : Screen(carContext), SurfaceCallbac
             Action.Builder()
                 .setTitle(if (s.imperial) "mph" else "km/h")
                 .setOnClickListener { controller.toggleUnits() }
+                .build()
+        )
+        strip.addAction(
+            Action.Builder()
+                .setTitle(s.carTheme.label)
+                .setOnClickListener { controller.cycleCarTheme() }
                 .build()
         )
         return NavigationTemplate.Builder().setActionStrip(strip.build()).build()
@@ -158,11 +165,28 @@ class CarDashScreen(carContext: CarContext) : Screen(carContext), SurfaceCallbac
     /** Last state actually drawn; identical state + settled needles = nothing to redraw. */
     private var lastDrawn: UiState? = null
     private var dirty = true
+    private var lastDark: Boolean? = null
+
+    /**
+     * Night palette or day palette. In Auto, follows the host's day/night signal, which Android Auto
+     * drives from the car's headlights / light sensor (carContext.isDarkMode updates when it flips).
+     */
+    private fun isDark(theme: CarTheme): Boolean = when (theme) {
+        CarTheme.AUTO -> carContext.isDarkMode
+        CarTheme.DAY -> false
+        CarTheme.NIGHT -> true
+    }
 
     private fun renderFrame() {
         val sfc = surface ?: return
         if (!sfc.isValid) return
         val s = controller.state.value
+        val dark = isDark(s.carTheme)
+        if (dark != lastDark) {
+            lastDark = dark
+            renderer.setDark(dark)
+            dirty = true
+        }
         val prevRpm = shownRpm
         val prevSpeed = shownSpeed
         shownRpm = ease(shownRpm, s.values[Pid.RPM])
@@ -194,6 +218,9 @@ class CarDashScreen(carContext: CarContext) : Screen(carContext), SurfaceCallbac
         kotlin.math.abs(target - current) < 0.5f -> target // settle, so the redraw loop can idle
         else -> current + (target - current) * 0.25f
     }
+
+    /** What the action strip shows; the template is rebuilt only when this changes. */
+    private data class StripKey(val conn: ConnState, val imperial: Boolean, val theme: CarTheme, val codeCount: Int)
 
     private companion object {
         const val TAG = "OBDDashCar"

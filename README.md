@@ -9,9 +9,12 @@ An Android dashboard for Bluetooth ELM327 OBD-II adapters, built with Kotlin and
   <img src="screenshots/phone_dashboard_demo.png" width="260" alt="Live dashboard with RPM and speed gauges and sensor tiles">
   <img src="screenshots/phone_home.png" width="260" alt="Start screen with connect card and paired adapters">
   <img src="screenshots/phone_profile_theme_setting.png" width="260" alt="Profile settings with units and Android Auto theme">
+  <img src="screenshots/phone_profile_car_tiles.png" width="260" alt="Android Auto tiles picker with six numbered tiles, including trip fuel average">
 </p>
 
 ### Android Auto
+The tiles shown here were picked under **Profile → Android Auto tiles**, with the trip fuel average in place of intake air.
+
 **Night**
 
 ![Android Auto dashboard, night theme](screenshots/android_auto_night.png)

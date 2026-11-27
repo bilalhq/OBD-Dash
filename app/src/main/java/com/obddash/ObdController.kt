@@ -39,6 +39,21 @@ enum class ConnState { Idle, Connecting, Connected, Error }
 const val HISTORY_STEP_MS = 250L
 const val HISTORY_POINTS = 240
 const val VOLTAGE_KEY = "VOLTAGE"
+/** History/tile key for the current trip's average fuel economy (stored in km/L). */
+const val FUEL_AVG_KEY = "FUEL_AVG"
+
+/** Most tiles the Android Auto screen can fit (2 × 3 full screen, 3 × 2 split screen). */
+const val MAX_CAR_TILES = 6
+
+/** Tiles the car screen shows until the user picks their own, in display order. */
+val DEFAULT_CAR_TILES = listOf(
+    VOLTAGE_KEY, Pid.COOLANT.name, Pid.THROTTLE.name, Pid.LOAD.name, Pid.INTAKE_TEMP.name, Pid.FUEL_LEVEL.name,
+)
+
+/** Every tile key the car screen can show: battery voltage plus the dashboard PIDs other than the two gauges. */
+val CAR_TILE_KEYS: List<String> =
+    listOf(VOLTAGE_KEY) + Pid.entries.filter { it.dashboard && it != Pid.RPM && it != Pid.SPEED }.map { it.name } +
+        FUEL_AVG_KEY
 
 data class PairedDevice(val name: String, val address: String, val likelyObd: Boolean)
 
@@ -72,6 +87,8 @@ data class UiState(
     val readingsPerSec: Float = 0f,
     val imperial: Boolean = false,
     val carTheme: CarTheme = CarTheme.AUTO,
+    /** Tile keys (see [CAR_TILE_KEYS]) shown on the Android Auto screen, in order. */
+    val carTiles: List<String> = DEFAULT_CAR_TILES,
     val bluetoothAvailable: Boolean = true,
     val bluetoothOn: Boolean = false,
     val pairedDevices: List<PairedDevice> = emptyList(),
@@ -80,13 +97,19 @@ data class UiState(
     val trips: List<Trip> = emptyList(),
     val recordingTripId: Long? = null,
     val tripDistanceKm: Double = 0.0,
+    /** Fuel used so far this trip (MAF estimate); null without a trip or a MAF sensor. */
+    val tripFuelLiters: Double? = null,
     /** Recent samples keyed by Pid.name (or [VOLTAGE_KEY]); NaN marks a missing reading. */
     val history: Map<String, FloatArray> = emptyMap(),
     val profile: Profile = Profile(),
     /** VIN reported by the connected car (mode 09), if any. */
     val carVin: String? = null,
     val vinReading: Boolean = false,
-)
+) {
+    /** Live average economy for the current trip in km/L; null until 0.5 km driven (too noisy before). */
+    val tripKmPerLiter: Double?
+        get() = tripFuelLiters?.takeIf { it > 0 && tripDistanceKm >= 0.5 }?.let { tripDistanceKm / it }
+}
 
 /** App-wide OBD connection and state, shared by the phone UI and the Android Auto screen. */
 class ObdController(app: Application) {
@@ -103,6 +126,8 @@ class ObdController(app: Application) {
             imperial = prefs.getBoolean(KEY_IMPERIAL, false),
             carTheme = prefs.getString(KEY_CAR_THEME, null)
                 ?.let { name -> CarTheme.entries.firstOrNull { it.name == name } } ?: CarTheme.AUTO,
+            carTiles = prefs.getString(KEY_CAR_TILES, null)
+                ?.let { saved -> cleanCarTiles(saved.split(',')) } ?: DEFAULT_CAR_TILES,
             lastAddress = prefs.getString(KEY_LAST, null),
             bluetoothAvailable = adapter != null,
             trips = tripStore.load(),
@@ -172,6 +197,16 @@ class ObdController(app: Application) {
         val next = _state.updateAndGet { it.copy(carTheme = CarTheme.entries[(it.carTheme.ordinal + 1) % CarTheme.entries.size]) }
         prefs.edit().putString(KEY_CAR_THEME, next.carTheme.name).apply()
     }
+
+    /** Sets which tiles the car screen shows, in order. Unknown keys and extras past [MAX_CAR_TILES] are dropped. */
+    fun setCarTiles(keys: List<String>) {
+        val clean = cleanCarTiles(keys)
+        prefs.edit().putString(KEY_CAR_TILES, clean.joinToString(",")).apply()
+        _state.update { it.copy(carTiles = clean) }
+    }
+
+    private fun cleanCarTiles(keys: List<String>): List<String> =
+        keys.filter { it in CAR_TILE_KEYS }.distinct().take(MAX_CAR_TILES)
 
     // ---------------------------------------------------------------- profile
 
@@ -434,7 +469,7 @@ class ObdController(app: Application) {
         _state.update {
             it.copy(
                 values = values, voltage = voltage, readingsPerSec = rate, rawValues = raw,
-                tripDistanceKm = r?.distanceKm ?: 0.0, trips = trips ?: it.trips,
+                tripDistanceKm = r?.distanceKm ?: 0.0, tripFuelLiters = r?.fuelLiters, trips = trips ?: it.trips,
             )
         }
     }
@@ -466,6 +501,7 @@ class ObdController(app: Application) {
                 val s = _state.value
                 for (pid in Pid.entries) if (pid.dashboard) pushSample(pid.name, s.values[pid])
                 pushSample(VOLTAGE_KEY, s.voltage)
+                pushSample(FUEL_AVG_KEY, s.tripKmPerLiter?.toFloat())
                 val snapshot = history.mapValues { (_, q) -> q.toFloatArray() }
                 _state.update { it.copy(history = snapshot) }
             }
@@ -498,7 +534,7 @@ class ObdController(app: Application) {
         val r = runCatching { TripRecorder(tripStore, demo, _state.value.profile.fuel) }.getOrNull() ?: return
         recorder = r
         lastAutosave = SystemClock.elapsedRealtime()
-        _state.update { it.copy(recordingTripId = r.id, tripDistanceKm = 0.0) }
+        _state.update { it.copy(recordingTripId = r.id, tripDistanceKm = 0.0, tripFuelLiters = null) }
     }
 
     private fun finishTrip() {
@@ -508,7 +544,7 @@ class ObdController(app: Application) {
         val trips = runCatching {
             if (trip != null) tripStore.upsert(trip) else tripStore.delete(r.id)
         }.getOrDefault(_state.value.trips)
-        _state.update { it.copy(trips = trips, recordingTripId = null, tripDistanceKm = 0.0) }
+        _state.update { it.copy(trips = trips, recordingTripId = null, tripDistanceKm = 0.0, tripFuelLiters = null) }
     }
 
     fun deleteTrip(id: Long) {
@@ -611,6 +647,7 @@ class ObdController(app: Application) {
     private companion object {
         const val KEY_IMPERIAL = "imperial"
         const val KEY_CAR_THEME = "car_theme"
+        const val KEY_CAR_TILES = "car_tiles"
         const val KEY_LAST = "last_device"
         const val AUTOSAVE_MS = 30_000L
 

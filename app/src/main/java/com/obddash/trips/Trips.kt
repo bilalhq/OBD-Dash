@@ -140,6 +140,9 @@ class TripRecorder(private val store: TripStore, private val demo: Boolean, priv
         }
     }
 
+    /** Fuel used so far, estimated from MAF; null if the car hasn't reported MAF. */
+    val fuelLiters: Double? get() = if (sawMaf) fuelGrams / fuel.densityGPerL else null
+
     fun snapshot() = Trip(
         id = id,
         endMs = if (lastDataWallMs > 0) lastDataWallMs else System.currentTimeMillis(),
@@ -147,7 +150,7 @@ class TripRecorder(private val store: TripStore, private val demo: Boolean, priv
         movingSeconds = movingMs / 1000,
         maxSpeedKmh = maxSpeed,
         maxRpm = maxRpm,
-        fuelLiters = if (sawMaf) fuelGrams / fuel.densityGPerL else null,
+        fuelLiters = fuelLiters,
         demo = demo,
         fuelLabel = fuel.label,
     )

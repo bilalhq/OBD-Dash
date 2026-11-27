@@ -22,8 +22,6 @@ import com.obddash.ConnState
 import com.obddash.HISTORY_POINTS
 import com.obddash.R
 import com.obddash.UiState
-import com.obddash.VOLTAGE_KEY
-import com.obddash.obd.Pid
 import com.obddash.ui.TileData
 import com.obddash.ui.buildTiles
 import com.obddash.ui.tickText
@@ -112,10 +110,6 @@ class CarDashRenderer(context: Context) {
     private val linePath = Path()
     private val areaPath = Path()
 
-    private val tileOrder = listOf(
-        VOLTAGE_KEY, Pid.COOLANT.name, Pid.THROTTLE.name, Pid.LOAD.name, Pid.INTAKE_TEMP.name, Pid.FUEL_LEVEL.name,
-    )
-
     fun draw(c: Canvas, area: Rect, d: Float, s: UiState, rpm: Float?, speed: Float?, permissionMissing: Boolean) {
         c.drawColor(bg)
         // Ambient glows, same as the phone background.
@@ -139,11 +133,21 @@ class CarDashRenderer(context: Context) {
         val minTileH = 92 * d
         val minTileW = 120 * d
 
+        // The user's tiles (Profile → Android Auto tiles), skipping any the car doesn't report.
+        val all = buildTiles(s)
+        val chosen = s.carTiles.mapNotNull { k -> all.find { it.historyKey == k } }
+
         val gauges: RectF
         val tiles: RectF
-        val cols: Int
-        val rows: Int
-        if (r.width() / r.height() >= 1.7f) {
+        var cols: Int
+        var rows: Int
+        if (chosen.isEmpty()) {
+            // No tiles: the gauges get the whole screen.
+            gauges = r
+            tiles = RectF()
+            cols = 1
+            rows = 0
+        } else if (r.width() / r.height() >= 1.7f) {
             // Wide (full screen): gauges left, 2-column tile grid right.
             val tilesW = r.width() * 0.40f
             gauges = RectF(r.left, r.top, r.right - tilesW - gap, r.bottom)
@@ -158,6 +162,11 @@ class CarDashRenderer(context: Context) {
             tiles = RectF(r.left, gauges.bottom + gap, r.right, r.bottom)
             cols = ((tiles.width() + gap) / (minTileW + gap)).toInt().coerceIn(2, 3)
             rows = ((tiles.height() + gap) / (minTileH + gap)).toInt().coerceIn(1, 6 / cols)
+        }
+        // Fewer tiles than slots: drop empty rows (the rest grow taller) and, on a single row, empty columns.
+        if (chosen.isNotEmpty()) {
+            rows = min(rows, (chosen.size + cols - 1) / cols)
+            if (rows == 1) cols = min(cols, chosen.size)
         }
 
         val size = min((gauges.width() - gap) / 2f, gauges.height())
@@ -176,7 +185,7 @@ class CarDashRenderer(context: Context) {
             min = 0f, max = if (imperial) 160f else 240f, step = if (imperial) 20f else 40f,
             label = "Speed", unit = if (imperial) "mph" else "km/h", divisor = 1f, redline = null,
         )
-        if (tiles.height() > 0) drawTiles(c, tiles, d, s, cols, rows)
+        if (rows > 0 && tiles.height() > 0) drawTiles(c, tiles, d, s, chosen.take(cols * rows), cols, rows)
     }
 
     // ------------------------------------------------------------------ status
@@ -364,9 +373,7 @@ class CarDashRenderer(context: Context) {
 
     // ------------------------------------------------------------------ tiles
 
-    private fun drawTiles(c: Canvas, area: RectF, d: Float, s: UiState, cols: Int, rows: Int) {
-        val all = buildTiles(s)
-        val chosen = (tileOrder.mapNotNull { k -> all.find { it.historyKey == k } } + all).distinct().take(cols * rows)
+    private fun drawTiles(c: Canvas, area: RectF, d: Float, s: UiState, chosen: List<TileData>, cols: Int, rows: Int) {
         val gap = 10 * d
         val tw = (area.width() - gap * (cols - 1)) / cols
         val th = (area.height() - gap * (rows - 1)) / rows

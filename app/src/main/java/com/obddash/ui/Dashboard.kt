@@ -33,6 +33,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.obddash.FUEL_AVG_KEY
 import com.obddash.UiState
 import com.obddash.VOLTAGE_KEY
 import com.obddash.obd.Pid
@@ -277,5 +278,19 @@ internal fun buildTiles(s: UiState): List<TileData> {
                 (pid == Pid.FUEL_LEVEL && raw != null && raw < 12f),
         )
     }
+    // Live trip average, from the same MAF fuel estimate as the Trips tab, so only with a MAF sensor.
+    if (Pid.MAF in s.supported) {
+        val kmL = s.tripKmPerLiter
+        tiles += TileData(
+            label = "Trip fuel avg",
+            value = kmL?.let { "%.1f".format(if (s.imperial) it * KM_PER_L_TO_MPG else it) } ?: "--",
+            unit = if (s.imperial) "mpg" else "km/L",
+            historyKey = FUEL_AVG_KEY,
+            minSpan = 1f,
+        )
+    }
     return tiles
 }
+
+/** km/L → US mpg (same factor as Fmt.economy's 235.215 / L/100km). */
+private const val KM_PER_L_TO_MPG = 2.35215

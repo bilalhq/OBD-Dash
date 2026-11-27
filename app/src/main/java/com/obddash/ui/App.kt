@@ -163,6 +163,7 @@ fun App(vm: ObdController = (LocalContext.current.applicationContext as ObdApp).
                 onChange = vm::updateProfile,
                 onImperial = vm::setImperial,
                 onCarTheme = vm::setCarTheme,
+                onCarTiles = vm::setCarTiles,
                 onReadVin = vm::readVinFromCar,
                 onClose = { showProfile = false },
             )

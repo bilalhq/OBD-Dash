@@ -25,7 +25,7 @@ An Android dashboard for Bluetooth ELM327 OBD-II adapters, built with Kotlin and
 ## Features
 - Connects to **paired** Bluetooth Classic (SPP) ELM327 adapters, including cheap clones (it falls back to RFCOMM channel 1)
 - Large animated arc gauges for **RPM** (red zone from 6500) and **Speed**
-- Tiles for battery voltage, throttle, engine load, coolant, intake air, manifold pressure, MAF, timing advance and fuel level, each with a range bar and warning colours
+- Tiles for battery voltage, throttle, engine load, coolant, intake air, manifold pressure, MAF, timing advance and fuel level, each with a range bar and warning colours, plus a live **trip fuel average** (km/L or mpg, estimated from the MAF sensor, shown after the first 0.5 km)
 - Asks the car which PIDs it supports and hides the tiles it doesn't support
 - Switches between km/h and °C or mph and °F (the choice is saved)
 - Reconnects automatically to the last adapter you used
@@ -49,6 +49,8 @@ Minimum Android version: 8.0 (API 26).
 
 ## Android Auto
 The car screen shows the RPM and speed gauges plus six sensor tiles with running graphs. Its buttons are Codes (read-only), Connect, Demo, units and theme.
+
+**Tiles:** under **Profile → Android Auto tiles** on the phone, choose up to six tiles (battery voltage, coolant, throttle, load, intake air, manifold pressure, MAF, timing advance, fuel level, trip fuel average) and their order. Tiles the car doesn't report are skipped. With fewer tiles, each one gets bigger, and with none the gauges fill the screen. **Reset** goes back to the default six.
 
 **Day/night theme:** in **Auto** (the default), the car screen switches between light and dark colours when your headlights come on, following the car's own day/night signal. You can also force **Day** or **Night**, either with the theme button on the car screen or under **Profile → Android Auto theme** on the phone.
 

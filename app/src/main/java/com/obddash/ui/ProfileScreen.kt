@@ -28,6 +28,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -46,12 +47,18 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.obddash.CAR_TILE_KEYS
 import com.obddash.CarTheme
 import com.obddash.ConnState
+import com.obddash.DEFAULT_CAR_TILES
+import com.obddash.FUEL_AVG_KEY
 import com.obddash.FuelType
+import com.obddash.MAX_CAR_TILES
 import com.obddash.Profile
 import com.obddash.UiState
+import com.obddash.VOLTAGE_KEY
 import com.obddash.Vin
+import com.obddash.obd.Pid
 
 @Composable
 fun ProfileScreen(
@@ -59,6 +66,7 @@ fun ProfileScreen(
     onChange: (Profile) -> Unit,
     onImperial: (Boolean) -> Unit,
     onCarTheme: (CarTheme) -> Unit,
+    onCarTiles: (List<String>) -> Unit,
     onReadVin: () -> Unit,
     onClose: () -> Unit,
 ) {
@@ -168,6 +176,25 @@ fun ProfileScreen(
                 color = DashColors.Muted, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(start = 4.dp),
             )
 
+            SectionLabel("Android Auto tiles") {
+                if (s.carTiles != DEFAULT_CAR_TILES) {
+                    Text(
+                        "Reset",
+                        color = DashColors.Accent,
+                        style = MaterialTheme.typography.labelLarge,
+                        modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable { onCarTiles(DEFAULT_CAR_TILES) }
+                            .padding(horizontal = 8.dp, vertical = 2.dp),
+                    )
+                }
+            }
+            CarTilesPicker(s, onCarTiles)
+            Text(
+                "Pick up to $MAX_CAR_TILES tiles for the car screen, shown beside the RPM and speed gauges in this order. " +
+                    "Tap a tile to add or remove it; use the arrow to move it up. Smaller car screens show only the first few. " +
+                    "With no tiles, the gauges fill the screen.",
+                color = DashColors.Muted, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(start = 4.dp),
+            )
+
             Spacer(Modifier.height(4.dp))
             GradientButton("Done", onClose, Modifier.fillMaxWidth())
             Text(
@@ -178,6 +205,86 @@ fun ProfileScreen(
             )
         }
     }
+}
+
+/** Chosen tiles first (numbered, in car order), then the rest. */
+@Composable
+private fun CarTilesPicker(s: UiState, onCarTiles: (List<String>) -> Unit) {
+    val chosen = s.carTiles
+    val full = chosen.size >= MAX_CAR_TILES
+    val rows = chosen + CAR_TILE_KEYS.filter { it !in chosen }
+    Column(Modifier.fillMaxWidth().glass().padding(vertical = 4.dp)) {
+        rows.forEachIndexed { i, key ->
+            val position = chosen.indexOf(key)
+            val selected = position >= 0
+            val enabled = selected || !full
+            val pid = if (key == FUEL_AVG_KEY) Pid.MAF else Pid.entries.firstOrNull { it.name == key }
+            val unsupported = s.conn == ConnState.Connected && pid != null && pid !in s.supported
+            if (i > 0) Box(Modifier.fillMaxWidth().padding(horizontal = 14.dp).height(1.dp).background(DashColors.Border))
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .clickable(enabled = enabled) {
+                        onCarTiles(if (selected) chosen - key else chosen + key)
+                    }
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                // Position badge, or an empty ring when not chosen.
+                Box(
+                    Modifier
+                        .size(26.dp)
+                        .clip(CircleShape)
+                        .then(
+                            if (selected) Modifier.background(DashBrushes.Accent)
+                            else Modifier.border(1.5.dp, DashColors.Border, CircleShape)
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (selected) {
+                        Text(
+                            "${position + 1}",
+                            color = DashColors.Bg, fontFamily = DashFonts.Display, fontWeight = FontWeight.Bold, fontSize = 13.sp,
+                        )
+                    }
+                }
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        carTileLabel(key),
+                        color = if (enabled) DashColors.Text else DashColors.Muted,
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                    if (unsupported) {
+                        Text(
+                            if (key == FUEL_AVG_KEY) "Needs a MAF sensor, which this car doesn't report" else "Not reported by this car",
+                            color = DashColors.Muted, style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+                if (selected && position > 0) {
+                    Box(
+                        Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .clickable {
+                                val reordered = chosen.toMutableList()
+                                reordered.add(position - 1, reordered.removeAt(position))
+                                onCarTiles(reordered)
+                            },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Move up", tint = DashColors.Muted)
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun carTileLabel(key: String): String = when (key) {
+    VOLTAGE_KEY -> "Battery voltage"
+    FUEL_AVG_KEY -> "Trip fuel average"
+    else -> Pid.entries.firstOrNull { it.name == key }?.label ?: key
 }
 
 @Composable

@@ -44,11 +44,18 @@ The tiles shown here were picked under **Profile → Android Auto tiles**, with 
 - Demo mode with a simulated drive (plus sample trouble codes), so you can try it without a car
 - Layouts for portrait and landscape, a dark theme, and the screen stays on while the app is open
 
+## Install
+Download `OBD-Dash.apk` from the [latest release](https://github.com/bilalhq/OBD-Dash/releases/latest) and install it with **KingInstaller**. Android 8.0 or later.
+
+> [!IMPORTANT]
+> Install the APK with **KingInstaller**, not by opening it from your file manager or browser. Otherwise **Android Auto won't show OBD Dash** on the car screen. The phone app works either way.
+
 ## Build & run
 1. Install **Android Studio** (any recent version).
 2. Choose **File → Open** and select this folder. Let Gradle sync; it downloads Gradle 8.11.1, AGP 8.7.3 and the SDK 35 platform the first time.
 3. Turn on USB debugging on your phone, plug it in and press **Run ▶**.
    Or use **Build → Build App Bundle(s)/APK(s) → Build APK(s)** to get an APK you can sideload.
+   Installing from Android Studio is fine for the phone app, but for Android Auto install the built APK with **KingInstaller** (see [Install](#install)).
 
 Minimum Android version: 8.0 (API 26).
 
@@ -69,9 +76,10 @@ It's registered as a *navigation* app because that's the only kind of Android Au
 - It can't be published on the Play Store; it's for sideloading only.
 
 To enable it:
-1. On the phone, open **Android Auto settings**, scroll down and tap **Version** 10 times to unlock developer settings.
-2. Open the **⋮ menu → Developer settings** and turn on **Unknown sources**.
-3. Connect to the car. OBD Dash appears in the app launcher.
+1. Make sure OBD Dash was installed with **KingInstaller** (see [Install](#install)). If it wasn't, uninstall it and install the APK again with KingInstaller.
+2. On the phone, open **Android Auto settings**, scroll down and tap **Version** 10 times to unlock developer settings.
+3. Open the **⋮ menu → Developer settings** and turn on **Unknown sources**.
+4. Connect to the car. OBD Dash appears in the app launcher.
 
 Before the first drive, open the phone app once and connect to your adapter. After that, the car screen connects to it automatically.
 

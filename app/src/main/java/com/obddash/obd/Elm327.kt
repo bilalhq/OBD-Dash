@@ -118,11 +118,8 @@ class Elm327 private constructor(private val socket: BluetoothSocket) : Closeabl
         ObdParser.dataBytes(send("01%02X".format(code)), code).firstOrNull()
             ?.joinToString(" ") { "%02X".format(it) }
 
-    /** Check-engine light state and number of stored codes (mode 01 PID 01). */
-    suspend fun milStatus(): Pair<Boolean, Int>? {
-        val a = ObdParser.dataBytes(send("0101", 3000), 0x01).firstOrNull()?.firstOrNull() ?: return null
-        return (a and 0x80 != 0) to (a and 0x7F)
-    }
+    /** Check-engine light, stored code count and readiness monitors (mode 01 PID 01), merged across ECUs. */
+    suspend fun readiness(): Readiness? = Readiness.parse(ObdParser.dataBytes(send("0101", 3000), 0x01))
 
     /** Reads trouble codes: mode 0x03 = stored, 0x07 = pending. */
     suspend fun readDtcs(mode: Int): List<String> =

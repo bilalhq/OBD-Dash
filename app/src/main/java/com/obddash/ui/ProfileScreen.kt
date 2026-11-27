@@ -52,6 +52,8 @@ import com.obddash.CarTheme
 import com.obddash.ConnState
 import com.obddash.DEFAULT_CAR_TILES
 import com.obddash.FUEL_AVG_KEY
+import com.obddash.FUEL_INSTANT_KEY
+import com.obddash.MAF_TILE_KEYS
 import com.obddash.FuelType
 import com.obddash.MAX_CAR_TILES
 import com.obddash.Profile
@@ -218,7 +220,7 @@ private fun CarTilesPicker(s: UiState, onCarTiles: (List<String>) -> Unit) {
             val position = chosen.indexOf(key)
             val selected = position >= 0
             val enabled = selected || !full
-            val pid = if (key == FUEL_AVG_KEY) Pid.MAF else Pid.entries.firstOrNull { it.name == key }
+            val pid = if (key in MAF_TILE_KEYS) Pid.MAF else Pid.entries.firstOrNull { it.name == key }
             val unsupported = s.conn == ConnState.Connected && pid != null && pid !in s.supported
             if (i > 0) Box(Modifier.fillMaxWidth().padding(horizontal = 14.dp).height(1.dp).background(DashColors.Border))
             Row(
@@ -257,7 +259,7 @@ private fun CarTilesPicker(s: UiState, onCarTiles: (List<String>) -> Unit) {
                     )
                     if (unsupported) {
                         Text(
-                            if (key == FUEL_AVG_KEY) "Needs a MAF sensor, which this car doesn't report" else "Not reported by this car",
+                            if (key in MAF_TILE_KEYS) "Needs a MAF sensor, which this car doesn't report" else "Not reported by this car",
                             color = DashColors.Muted, style = MaterialTheme.typography.bodySmall)
                     }
                 }
@@ -284,6 +286,7 @@ private fun CarTilesPicker(s: UiState, onCarTiles: (List<String>) -> Unit) {
 private fun carTileLabel(key: String): String = when (key) {
     VOLTAGE_KEY -> "Battery voltage"
     FUEL_AVG_KEY -> "Trip fuel average"
+    FUEL_INSTANT_KEY -> "Instant fuel economy"
     else -> Pid.entries.firstOrNull { it.name == key }?.label ?: key
 }
 

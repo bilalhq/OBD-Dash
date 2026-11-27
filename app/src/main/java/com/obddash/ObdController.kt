@@ -10,6 +10,7 @@ import com.obddash.obd.EcuNotRespondingException
 import com.obddash.obd.Elm327
 import com.obddash.obd.ObdParser
 import com.obddash.obd.Pid
+import com.obddash.obd.Readiness
 import com.obddash.trips.Trip
 import com.obddash.trips.TripRecorder
 import com.obddash.trips.TripStore
@@ -41,6 +42,12 @@ const val HISTORY_POINTS = 240
 const val VOLTAGE_KEY = "VOLTAGE"
 /** History/tile key for the current trip's average fuel economy (stored in km/L). */
 const val FUEL_AVG_KEY = "FUEL_AVG"
+/** History/tile key for instant fuel economy right now (stored in km/L). */
+const val FUEL_INSTANT_KEY = "FUEL_INSTANT"
+/** Tiles computed from the MAF fuel estimate, so they need a MAF sensor. */
+val MAF_TILE_KEYS = setOf(FUEL_AVG_KEY, FUEL_INSTANT_KEY)
+/** Instant economy is capped here: coasting with little air flow would otherwise read in the hundreds. */
+const val INSTANT_KM_PER_L_MAX = 50.0
 
 /** Most tiles the Android Auto screen can fit (2 × 3 full screen, 3 × 2 split screen). */
 const val MAX_CAR_TILES = 6
@@ -53,7 +60,7 @@ val DEFAULT_CAR_TILES = listOf(
 /** Every tile key the car screen can show: battery voltage plus the dashboard PIDs other than the two gauges. */
 val CAR_TILE_KEYS: List<String> =
     listOf(VOLTAGE_KEY) + Pid.entries.filter { it.dashboard && it != Pid.RPM && it != Pid.SPEED }.map { it.name } +
-        FUEL_AVG_KEY
+        FUEL_AVG_KEY + FUEL_INSTANT_KEY
 
 data class PairedDevice(val name: String, val address: String, val likelyObd: Boolean)
 
@@ -64,6 +71,8 @@ data class CodesState(
     val storedCount: Int? = null,
     val stored: List<Dtc> = emptyList(),
     val pending: List<Dtc> = emptyList(),
+    /** Emissions readiness monitors; null if the car didn't answer PID 01 in full. */
+    val readiness: Readiness? = null,
     val error: String? = null,
     val info: String? = null,
 )
@@ -109,6 +118,20 @@ data class UiState(
     /** Live average economy for the current trip in km/L; null until 0.5 km driven (too noisy before). */
     val tripKmPerLiter: Double?
         get() = tripFuelLiters?.takeIf { it > 0 && tripDistanceKm >= 0.5 }?.let { tripDistanceKm / it }
+
+    /**
+     * Economy right now in km/L: speed divided by fuel flow (MAF → L/h, same estimate as trips).
+     * 0 when stopped; capped at [INSTANT_KM_PER_L_MAX]; null without speed or MAF readings.
+     */
+    val instantKmPerLiter: Double?
+        get() {
+            val maf = values[Pid.MAF] ?: return null
+            val speed = values[Pid.SPEED] ?: return null
+            if (speed < 1f) return 0.0
+            val litersPerHour = maf * 3600.0 / profile.fuel.afr / profile.fuel.densityGPerL
+            if (litersPerHour <= 0.0) return INSTANT_KM_PER_L_MAX
+            return (speed / litersPerHour).coerceAtMost(INSTANT_KM_PER_L_MAX)
+        }
 }
 
 /** App-wide OBD connection and state, shared by the phone UI and the Android Auto screen. */
@@ -502,6 +525,7 @@ class ObdController(app: Application) {
                 for (pid in Pid.entries) if (pid.dashboard) pushSample(pid.name, s.values[pid])
                 pushSample(VOLTAGE_KEY, s.voltage)
                 pushSample(FUEL_AVG_KEY, s.tripKmPerLiter?.toFloat())
+                pushSample(FUEL_INSTANT_KEY, s.instantKmPerLiter?.toFloat())
                 val snapshot = history.mapValues { (_, q) -> q.toFloatArray() }
                 _state.update { it.copy(history = snapshot) }
             }
@@ -606,21 +630,23 @@ class ObdController(app: Application) {
     }
 
     private suspend fun readAllCodes(e: Elm327): CodesState {
-        val mil = e.milStatus()
+        val readiness = e.readiness()
         val stored = e.readDtcs(0x03).map(::Dtc)
         val pending = e.readDtcs(0x07).map(::Dtc).filterNot { it in stored }
         return CodesState(
-            read = true, milOn = mil?.first, storedCount = mil?.second ?: stored.size,
-            stored = stored, pending = pending,
+            read = true, milOn = readiness?.milOn, storedCount = readiness?.dtcCount ?: stored.size,
+            stored = stored, pending = pending, readiness = readiness,
         )
     }
 
     private fun demoCodes() = if (demoCodesCleared) {
-        CodesState(read = true, milOn = false, storedCount = 0)
+        // Clearing codes resets the non-continuous monitors, as on a real car.
+        CodesState(read = true, milOn = false, storedCount = 0, readiness = Readiness.parseHex(DEMO_READINESS_CLEARED))
     } else {
         CodesState(
             read = true, milOn = true, storedCount = 1,
             stored = listOf(Dtc("P0420")), pending = listOf(Dtc("P0171")),
+            readiness = Readiness.parseHex(DEMO_READINESS),
         )
     }
 
@@ -659,7 +685,11 @@ class ObdController(app: Application) {
             Pid.CONTROL_VOLTAGE, Pid.COMMANDED_LAMBDA, Pid.RELATIVE_THROTTLE, Pid.PEDAL_D, Pid.CAT_TEMP_B1S1,
             Pid.FUEL_RATE, Pid.RUN_TIME, Pid.DISTANCE_SINCE_CLEAR, Pid.WARMUPS_SINCE_CLEAR,
         )
-        val DEMO_RAW = mapOf(0x01 to "00 07 E5 00", 0x03 to "02 00", 0x1C to "06", 0x51 to "01")
+        /** Petrol car, MIL on with 1 code; catalyst, evap, O2 + heater supported; evap not finished. */
+        const val DEMO_READINESS = "81 07 65 04"
+        /** After clearing: every non-continuous monitor back to incomplete. */
+        const val DEMO_READINESS_CLEARED = "00 07 65 65"
+        val DEMO_RAW = mapOf(0x01 to DEMO_READINESS, 0x03 to "02 00", 0x1C to "06", 0x51 to "01")
 
         /** Made-up but well-formed VIN (Toyota, 2018) for demo mode. */
         const val DEMO_VIN = "JTDBR32E0J0123456"

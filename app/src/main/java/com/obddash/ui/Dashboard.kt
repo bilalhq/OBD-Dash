@@ -34,6 +34,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.obddash.FUEL_AVG_KEY
+import com.obddash.FUEL_INSTANT_KEY
 import com.obddash.UiState
 import com.obddash.VOLTAGE_KEY
 import com.obddash.obd.Pid
@@ -278,8 +279,16 @@ internal fun buildTiles(s: UiState): List<TileData> {
                 (pid == Pid.FUEL_LEVEL && raw != null && raw < 12f),
         )
     }
-    // Live trip average, from the same MAF fuel estimate as the Trips tab, so only with a MAF sensor.
+    // Instant economy and trip average, from the same MAF fuel estimate as the Trips tab,
+    // so only with a MAF sensor.
     if (Pid.MAF in s.supported) {
+        tiles += TileData(
+            label = "Instant economy",
+            value = s.instantKmPerLiter?.let { "%.1f".format(if (s.imperial) it * KM_PER_L_TO_MPG else it) } ?: "--",
+            unit = if (s.imperial) "mpg" else "km/L",
+            historyKey = FUEL_INSTANT_KEY,
+            minSpan = 2f,
+        )
         val kmL = s.tripKmPerLiter
         tiles += TileData(
             label = "Trip fuel avg",

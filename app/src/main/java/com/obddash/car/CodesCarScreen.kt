@@ -53,6 +53,17 @@ class CodesCarScreen(carContext: CarContext) : Screen(carContext) {
                     .addText("${c.storedCount ?: c.stored.size} stored · ${c.pending.size} pending")
                     .build()
             )
+            c.readiness?.takeIf { it.monitors.isNotEmpty() }?.let { r ->
+                list.addItem(
+                    Row.Builder()
+                        .setTitle("Emissions readiness: ${r.completeCount} of ${r.monitors.size} complete")
+                        .addText(
+                            if (r.allComplete) "All monitors complete"
+                            else "Not ready: " + r.incomplete.joinToString(", ") { it.name }
+                        )
+                        .build()
+                )
+            }
             c.error?.let { list.addItem(Row.Builder().setTitle("Error").addText(it).build()) }
             if (c.read && c.stored.isEmpty() && c.pending.isEmpty()) {
                 list.addItem(Row.Builder().setTitle("No trouble codes").addText("No stored or pending faults").build())

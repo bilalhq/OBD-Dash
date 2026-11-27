@@ -1,6 +1,12 @@
 package com.obddash.ui
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -40,6 +46,8 @@ import androidx.compose.ui.unit.sp
 import com.obddash.ConnState
 import com.obddash.UiState
 import com.obddash.obd.Dtc
+import com.obddash.obd.Monitor
+import com.obddash.obd.Readiness
 
 @Composable
 fun CodesScreen(s: UiState, onRead: () -> Unit, onClear: () -> Unit) {
@@ -91,6 +99,7 @@ fun CodesScreen(s: UiState, onRead: () -> Unit, onClear: () -> Unit) {
                         CodeSection("Stored", "Confirmed faults. These turn on the check-engine light.", c.stored)
                         CodeSection("Pending", "Faults seen once that haven't been confirmed yet.", c.pending)
                     }
+                    c.readiness?.takeIf { it.monitors.isNotEmpty() }?.let { ReadinessCard(it) }
                 }
             }
 
@@ -164,6 +173,65 @@ private fun StatusCard(
                 color = if (!loading && read) DashColors.Red else DashColors.Muted,
             )
         }
+    }
+}
+
+@Composable
+private fun ReadinessCard(r: Readiness) {
+    val notReady = r.incomplete.size
+    DashCard(accent = if (r.allComplete) DashColors.Green else null) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("EMISSIONS READINESS", color = DashColors.Muted, style = MaterialTheme.typography.labelSmall)
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Text(
+                        "${r.completeCount} / ${r.monitors.size}",
+                        fontSize = 36.sp,
+                        fontFamily = DashFonts.Display,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text("complete", color = DashColors.Muted, modifier = Modifier.padding(bottom = 8.dp))
+                }
+            }
+            if (r.allComplete) Pill("All complete", DashColors.Green)
+            else Pill("$notReady not ready", DashColors.Amber)
+        }
+        Column {
+            r.monitors.forEachIndexed { i, m ->
+                if (i > 0) Box(Modifier.fillMaxWidth().height(1.dp).background(DashColors.Border))
+                MonitorRow(m)
+            }
+        }
+        Text(
+            "These are the car's own emissions self-tests${if (r.diesel) " (diesel set)" else ""}. " +
+                "Clearing codes or disconnecting the battery resets them, and they finish again after a few days " +
+                "of normal driving. Inspection rules differ by region, and some allow one or two incomplete monitors.",
+            color = DashColors.Muted,
+            style = MaterialTheme.typography.bodySmall,
+        )
+    }
+}
+
+@Composable
+private fun MonitorRow(m: Monitor) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+        if (m.complete) {
+            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = DashColors.Green, modifier = Modifier.size(20.dp))
+        } else {
+            Box(Modifier.size(20.dp).padding(2.dp).border(2.dp, DashColors.Amber, CircleShape))
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(m.name)
+            if (m.continuous) Text("Runs continuously", color = DashColors.Muted, style = MaterialTheme.typography.bodySmall)
+        }
+        Text(
+            if (m.complete) "Complete" else "Not ready",
+            color = if (m.complete) DashColors.Green else DashColors.Amber,
+            fontWeight = FontWeight.Medium,
+            fontSize = 14.sp,
+        )
     }
 }
 

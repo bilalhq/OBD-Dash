@@ -35,11 +35,12 @@ The tiles shown here were picked under **Profile → Android Auto tiles**, with 
 ## Features
 - Connects to **paired** Bluetooth Classic (SPP) ELM327 adapters, including cheap clones (it falls back to RFCOMM channel 1)
 - Large animated arc gauges for **RPM** (red zone from 6500) and **Speed**
-- Tiles for battery voltage, throttle, engine load, coolant, intake air, manifold pressure, MAF, timing advance and fuel level, each with a range bar and warning colours, plus a live **trip fuel average** (km/L or mpg, estimated from the MAF sensor, shown after the first 0.5 km)
+- Tiles for battery voltage, throttle, engine load, coolant, intake air, manifold pressure, MAF, timing advance and fuel level, each with a range bar and warning colours, plus **instant fuel economy** and a live **trip fuel average** (km/L or mpg, estimated from the MAF sensor; the average appears after the first 0.5 km)
 - Asks the car which PIDs it supports and hides the tiles it doesn't support
 - Switches between km/h and °C or mph and °F (the choice is saved)
 - Reconnects automatically to the last adapter you used
 - **Trouble codes** tab: shows whether the check-engine light is on, lists stored (mode 03) and pending (mode 07) codes with descriptions, and can clear codes (mode 04) after asking you to confirm
+- **Emissions readiness** on the Trouble codes tab: shows which of the car's emissions self-tests (catalyst, evap, O2 sensors, EGR and so on, or the diesel set) have finished since codes were last cleared, so you can tell whether the car is ready for an inspection. Also shown on the car screen's Codes list
 - **Trips** tab: a trip is recorded automatically each time you connect, with distance, duration, average and max speed, max RPM, and fuel used and economy estimated from the MAF sensor. Each trip keeps a once-a-second CSV log you can export through the share sheet. The current trip is saved every 30 s so a crash doesn't lose it
 - Demo mode with a simulated drive (plus sample trouble codes), so you can try it without a car
 - Layouts for portrait and landscape, a dark theme, and the screen stays on while the app is open
@@ -67,7 +68,7 @@ Minimum Android version: 8.0 (API 26).
 ## Android Auto
 The car screen shows the RPM and speed gauges plus six sensor tiles with running graphs. Its buttons are Codes (read-only), Connect, Demo, units and theme.
 
-**Tiles:** under **Profile → Android Auto tiles** on the phone, choose up to six tiles (battery voltage, coolant, throttle, load, intake air, manifold pressure, MAF, timing advance, fuel level, trip fuel average) and their order. Tiles the car doesn't report are skipped. With fewer tiles, each one gets bigger, and with none the gauges fill the screen. **Reset** goes back to the default six.
+**Tiles:** under **Profile → Android Auto tiles** on the phone, choose up to six tiles (battery voltage, coolant, throttle, load, intake air, manifold pressure, MAF, timing advance, fuel level, instant fuel economy, trip fuel average) and their order. Tiles the car doesn't report are skipped. With fewer tiles, each one gets bigger, and with none the gauges fill the screen. **Reset** goes back to the default six.
 
 **Day/night theme:** in **Auto** (the default), the car screen switches between light and dark colours when your headlights come on, following the car's own day/night signal. You can also force **Day** or **Night**, either with the theme button on the car screen or under **Profile → Android Auto theme** on the phone.
 

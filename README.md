@@ -45,7 +45,7 @@ The tiles shown here were picked under **Profile → Android Auto tiles**, with 
 - Layouts for portrait and landscape, a dark theme, and the screen stays on while the app is open
 
 ## Install
-Download `OBD-Dash.apk` from the [latest release](https://github.com/bilalhq/OBD-Dash/releases/latest) and install it with **KingInstaller**. Android 8.0 or later.
+Download `OBD-Dash.apk` from the [latest release](https://github.com/bilalhq/OBD-Dash/releases/latest) and install it with **[KingInstaller](https://github.com/fcaronte/KingInstaller)**. Android 8.0 or later.
 
 > [!IMPORTANT]
 > Install the APK with **KingInstaller**, not by opening it from your file manager or browser. Otherwise **Android Auto won't show OBD Dash** on the car screen. The phone app works either way.

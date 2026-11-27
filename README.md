@@ -1,8 +1,13 @@
+<p align="center">
+  <img src="screenshots/banner.png" alt="OBD Dash: live engine data from any ELM327 adapter, on your phone and your car's screen. Shows the Android Auto dashboard and the phone dashboard.">
+</p>
+
 # OBD Dash
 
 An Android dashboard for Bluetooth ELM327 OBD-II adapters, built with Kotlin and Jetpack Compose.
 
-## Screenshots
+<details>
+<summary><b>Screenshots</b> (phone and Android Auto)</summary>
 
 ### Phone
 <p>
@@ -24,6 +29,8 @@ The tiles shown here were picked under **Profile → Android Auto tiles**, with 
 ![Android Auto dashboard, day theme](screenshots/android_auto_day.png)
 
 *Screenshots are from the emulator in Demo mode. The Android Auto images show the dashboard drawn by the car renderer, without Android Auto's own frame and buttons.*
+
+</details>
 
 ## Features
 - Connects to **paired** Bluetooth Classic (SPP) ELM327 adapters, including cheap clones (it falls back to RFCOMM channel 1)
